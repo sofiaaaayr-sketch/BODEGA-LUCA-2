@@ -2,14 +2,70 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Bodega Luca", page_icon="📦", layout="wide")
+# CONFIGURACIÓN
+st.set_page_config(
+    page_title="Bodega Luca",
+    page_icon="📦",
+    layout="wide"
+)
 
-# Cargar archivos
+# ESTILOS
+st.markdown("""
+<style>
+
+.stApp {
+    background-color: #F3E9DB;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #DCC7AE;
+}
+
+h1, h2, h3 {
+    color: #3D2C24 !important;
+}
+
+div[data-testid="metric-container"] {
+    background-color: white;
+    border: 2px solid #BFA386;
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.stButton > button {
+    background-color: #8A6B54;
+    color: white;
+    border-radius: 10px;
+    border: none;
+}
+
+.stButton > button:hover {
+    background-color: #3D2C24;
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# CARGAR DATOS
 inventario = pd.read_csv("inventario.csv")
 ventas = pd.read_csv("ventas.csv")
 
-st.title("📦 BODEGA LUCA")
+# TÍTULO
+st.markdown(
+    """
+    <h1 style='text-align:center; color:#3D2C24;'>
+    📦 BODEGA LUCA
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
 
+st.caption(
+    f"📅 {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+)
+
+# MENÚ
 menu = st.sidebar.selectbox(
     "Menú",
     [
@@ -30,25 +86,46 @@ if menu == "📊 Dashboard":
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("📦 Productos", len(inventario))
+        st.metric(
+            "📦 Productos",
+            len(inventario)
+        )
 
     with col2:
-        st.metric("📋 Stock Total", int(inventario["Stock"].sum()))
+        st.metric(
+            "📋 Stock Total",
+            int(inventario["Stock"].sum())
+        )
 
     with col3:
-        if len(ventas) > 0:
-            st.metric("💰 Ingresos", f"S/ {ventas['Total'].sum():.2f}")
-        else:
-            st.metric("💰 Ingresos", "S/ 0.00")
+        ingresos = (
+            ventas["Total"].sum()
+            if len(ventas) > 0
+            else 0
+        )
 
-    st.subheader("⚠️ Productos con stock bajo")
+        st.metric(
+            "💰 Ingresos Totales",
+            f"S/ {ingresos:.2f}"
+        )
 
-    stock_bajo = inventario[inventario["Stock"] < 5]
+    st.divider()
+
+    st.subheader("⚠️ Productos con Stock Bajo")
+
+    stock_bajo = inventario[
+        inventario["Stock"] < 5
+    ]
 
     if len(stock_bajo) > 0:
-        st.dataframe(stock_bajo)
+        st.dataframe(
+            stock_bajo,
+            use_container_width=True
+        )
     else:
-        st.success("No hay productos con stock bajo")
+        st.success(
+            "No hay productos con stock bajo."
+        )
 
 # INVENTARIO
 elif menu == "📦 Inventario":
@@ -56,34 +133,51 @@ elif menu == "📦 Inventario":
     st.header("📦 Inventario")
 
     categoria = st.selectbox(
-        "Filtrar categoría",
-        ["Todas"] + list(inventario["Categoría"].unique())
+        "Filtrar por categoría",
+        ["Todas"] +
+        list(inventario["Categoría"].unique())
     )
 
     if categoria == "Todas":
         tabla = inventario
     else:
-        tabla = inventario[inventario["Categoría"] == categoria]
+        tabla = inventario[
+            inventario["Categoría"] == categoria
+        ]
 
-    st.dataframe(tabla, use_container_width=True)
+    st.dataframe(
+        tabla,
+        use_container_width=True
+    )
 
-# BUSCAR
+# BUSCAR PRODUCTO
 elif menu == "🔍 Buscar Producto":
 
     st.header("🔍 Buscar Producto")
 
-    buscar = st.text_input("Ingrese nombre del producto")
+    texto = st.text_input(
+        "Escribe el nombre del producto"
+    )
 
-    if buscar:
+    if texto:
+
         resultado = inventario[
             inventario["Producto"].str.contains(
-                buscar,
+                texto,
                 case=False,
                 na=False
             )
         ]
 
-        st.dataframe(resultado)
+        if len(resultado) > 0:
+            st.dataframe(
+                resultado,
+                use_container_width=True
+            )
+        else:
+            st.warning(
+                "No se encontraron productos."
+            )
 
 # REGISTRAR VENTA
 elif menu == "💰 Registrar Venta":
@@ -91,7 +185,7 @@ elif menu == "💰 Registrar Venta":
     st.header("💰 Registrar Venta")
 
     producto = st.selectbox(
-        "Producto",
+        "Seleccione un producto",
         inventario["Producto"]
     )
 
@@ -103,18 +197,23 @@ elif menu == "💰 Registrar Venta":
 
     if st.button("Registrar Venta"):
 
-        fila = inventario[inventario["Producto"] == producto]
+        fila = inventario[
+            inventario["Producto"] == producto
+        ]
 
-        stock_actual = int(fila["Stock"].values[0])
+        stock = int(fila["Stock"].values[0])
         precio = float(fila["Precio"].values[0])
         codigo = fila["Código"].values[0]
 
-        if cantidad > stock_actual:
-            st.error("Stock insuficiente")
+        if cantidad > stock:
+
+            st.error(
+                "Stock insuficiente."
+            )
 
         else:
 
-            nuevo_stock = stock_actual - cantidad
+            nuevo_stock = stock - cantidad
 
             inventario.loc[
                 inventario["Producto"] == producto,
@@ -129,11 +228,11 @@ elif menu == "💰 Registrar Venta":
             total = cantidad * precio
 
             nueva_venta = pd.DataFrame({
-                "Fecha": [datetime.now().strftime("%d/%m/%Y %H:%M")],
-                "Código": [codigo],
-                "Producto": [producto],
-                "Cantidad": [cantidad],
-                "Total": [total]
+                "Fecha":[datetime.now().strftime("%d/%m/%Y %H:%M")],
+                "Código":[codigo],
+                "Producto":[producto],
+                "Cantidad":[cantidad],
+                "Total":[total]
             })
 
             ventas = pd.concat(
@@ -147,7 +246,7 @@ elif menu == "💰 Registrar Venta":
             )
 
             st.success(
-                f"Venta registrada. Total: S/ {total:.2f}"
+                f"Venta registrada correctamente. Total: S/ {total:.2f}"
             )
 
 # HISTORIAL
@@ -156,9 +255,22 @@ elif menu == "📅 Historial de Ventas":
     st.header("📅 Historial de Ventas")
 
     if len(ventas) > 0:
-        st.dataframe(ventas, use_container_width=True)
+
+        st.dataframe(
+            ventas,
+            use_container_width=True
+        )
+
+        st.metric(
+            "Ventas Registradas",
+            len(ventas)
+        )
+
     else:
-        st.info("Aún no hay ventas registradas")
+
+        st.info(
+            "No existen ventas registradas."
+        )
 
 # ACERCA
 elif menu == "ℹ️ Acerca del Sistema":
@@ -166,13 +278,23 @@ elif menu == "ℹ️ Acerca del Sistema":
     st.header("ℹ️ Acerca del Sistema")
 
     st.write("""
-    Sistema web desarrollado para la gestión de inventario
-    y ventas de la Bodega Luca.
+### Sistema Web de Gestión de Inventario y Ventas
 
-    Funciones:
-    - Control de inventario
-    - Registro de ventas
-    - Historial de ventas
-    - Búsqueda de productos
-    - Control de stock
-    """)
+Bodega Luca es una aplicación web desarrollada en Python y Streamlit para administrar productos, controlar el stock y registrar ventas.
+
+#### Funcionalidades
+
+- Gestión de inventario
+- Búsqueda de productos
+- Registro de ventas
+- Historial de ventas
+- Control de stock
+- Dashboard de indicadores
+
+#### Tecnologías utilizadas
+
+- Python
+- Streamlit
+- Pandas
+- CSV
+""")
